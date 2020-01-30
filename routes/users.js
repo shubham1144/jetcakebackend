@@ -5,6 +5,8 @@ const bcrypt = require('bcrypt');
 var models = require('./../models');
 const multer = require('multer');
 
+var createJWToken = require('./../util/tokenHelper');
+
 const getStream = require('into-stream');
 const {
   BlobServiceClient,
@@ -48,24 +50,24 @@ const streamToString = async (readableStream) => {
  */
 router.get('/profile', async (req, res) => {
   let profileImage, user;
-  let { userId } = req.query;
   const fetchUserProfileImage = async () => {
-    const containerClient = blobServiceClient.getContainerClient(containerName2);
-    const blockBlobClient = containerClient.getBlockBlobClient((userId ? userId : 'deafaultlogo') + '.jpg');
-    const downloadBlockBlobResponse = await blockBlobClient.download(0);
-    profileImage = await streamToString(downloadBlockBlobResponse.readableStreamBody);
+    try{
+      const containerClient = blobServiceClient.getContainerClient(containerName2);
+      const blockBlobClient = containerClient.getBlockBlobClient((req.user.id ? req.user.id : 'deafaultlogo') + '.jpg');
+      const downloadBlockBlobResponse = await blockBlobClient.download(0);
+      profileImage = await streamToString(downloadBlockBlobResponse.readableStreamBody);  
+    }catch(err){
+      profileImage = null;
+    }
   }
   const fetchUserData = async () => {
     user = await models.user.findOne({
       where: {
-          id: req.query.userId ,
+          id: req.user.id,
       },
-      attributes: 
-      {
-        include : ['id', 'email', 'contactNumber', 
+      attributes:['id', 'email', 'contactNumber', 
           'dob', 'address', 'securityAns1', 'securityAns2', 'securityAns3'
         ]
-      }
     })
   }
 
@@ -95,7 +97,6 @@ router.get('/profile', async (req, res) => {
  */
 router.put('/profile', uploadStrategy, async(req, res) => {
   const {
-    id,
     email,  
     contactNumber,
     dob,
@@ -114,7 +115,7 @@ router.put('/profile', uploadStrategy, async(req, res) => {
       securityAns2, 
       securityAns3
     },
-    { where: { email: email, id: id }, returning: true }
+    { where: { email: email, id: req.user.id }, returning: true }
   )
     .then(async (updatedUser) =>{
       res.status(200).send({
@@ -124,8 +125,7 @@ router.put('/profile', uploadStrategy, async(req, res) => {
       try {
         if(!req.file) return;
         //  Upload the file uploaded if any to the cloud storage account
-        const blobName = id+'.jpg';
-        console.log("The blobName involved is : ", blobName);
+        const blobName = req.user.id + '.jpg';
         const stream = getStream(req.file.buffer);
         const containerClient = blobServiceClient.getContainerClient(containerName2);;
         const blockBlobClient = containerClient.getBlockBlobClient(blobName);
@@ -224,7 +224,10 @@ router.post('/signin', async (req, res) => {
           success: true,
           data : {
             email : userToCheck.email,
-            id: userToCheck.id
+            token: createJWToken({
+              id: userToCheck.id,
+              email : userToCheck.email,
+            })
           },
           message : "Welcome " + userToCheck.email
         });
