@@ -1,0 +1,16 @@
+{
+  "development": {
+    "username": "<PROVIDE YOUR USERNAME HERE>",
+    "password": "<PROVIDE YOUR PASSWORD HERE>",
+    "database": "<PROVIDE YOUR DATABASE HERE>",
+    "host": "<PROVIDE YOUR HOST HERE>",
+    "dialect": "mysql"
+  },
+  "production": {
+    "username": "<PROVIDE YOUR USERNAME HERE>",
+    "password": "<PROVIDE YOUR PASSWORD HERE>",
+    "database": "<PROVIDE YOUR DATABASE HERE>",
+    "host": "<PROVIDE YOUR HOST HERE>",
+    "dialect": "mysql"
+  }
+}
