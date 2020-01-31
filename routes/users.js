@@ -65,7 +65,7 @@ router.get('/profile', async (req, res) => {
       where: {
           id: req.user.id,
       },
-      attributes:['id', 'email', 'contactNumber', 
+      attributes:['email', 'contactNumber', 
           'dob', 'address', 'securityAns1', 'securityAns2', 'securityAns3'
         ]
     })
@@ -118,12 +118,13 @@ router.put('/profile', uploadStrategy, async(req, res) => {
     { where: { email: email, id: req.user.id }, returning: true }
   )
     .then(async (updatedUser) =>{
-      res.status(200).send({
-        success : true,
-        message : "User profile has been updated"
-      })
       try {
-        if(!req.file) return;
+        if(!req.file) {
+          return res.status(200).send({
+            success : true,
+            message : "User profile has been updated"
+          });
+        };
         //  Upload the file uploaded if any to the cloud storage account
         const blobName = req.user.id + '.jpg';
         const stream = getStream(req.file.buffer);
@@ -132,9 +133,17 @@ router.put('/profile', uploadStrategy, async(req, res) => {
         await blockBlobClient.uploadStream(stream,
           uploadOptions.bufferSize, uploadOptions.maxBuffers,
           { blobHTTPHeaders: { blobContentType: "image/jpeg" } });
-        console.log("File has been uploaded successfully")
+        console.log("File has been uploaded successfully");
+        res.status(200).send({
+          success : true,
+          message : "User profile has been updated"
+        })
       } catch (err) {
         console.log("Error occured during file upload : ", err);
+        res.status(200).send({
+          success : true,
+          message : "User profile has been updated"
+        })
       }
      }).catch((err=>{
        console.log("Error occured due to : ", err);
@@ -171,28 +180,38 @@ router.post('/signup', uploadStrategy, (req, res) => {
       securityAns3,
     }})
     .spread(async(user, created) => {
-      res
-      .status(created? 200: 409)
-      .send({
-        success : created,
-        message: created? "User registration complete": "User already exists",
-        user : {
-          email : user.email
-        }
-      })
+      
       try {
         if(!created) return;
         //  Upload the file uploaded if any to the cloud storage account
-      const blobName = user.id+'.jpg';
-      const stream = getStream(req.file.buffer);
-      const containerClient = blobServiceClient.getContainerClient(containerName2);;
-      const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+        const blobName = user.id+'.jpg';
+        const stream = getStream(req.file.buffer);
+        const containerClient = blobServiceClient.getContainerClient(containerName2);;
+        const blockBlobClient = containerClient.getBlockBlobClient(blobName);
         await blockBlobClient.uploadStream(stream,
           uploadOptions.bufferSize, uploadOptions.maxBuffers,
           { blobHTTPHeaders: { blobContentType: "image/jpeg" } });
-        console.log("File has been uploaded successfully")
+        console.log("File has been uploaded successfully");
+        res
+        .status(created? 200: 409)
+        .send({
+          success : created,
+          message: created? "User registration complete. You can sign in to your account now !!!": "User already exists",
+          user : {
+            email : user.email
+          }
+        })
       } catch (err) {
         console.log("Error occured during file upload : ", err);
+        res
+        .status(created? 200: 409)
+        .send({
+          success : created,
+          message: created? "User registration complete. You can sign in to your account now !!!": "User already exists",
+          user : {
+            email : user.email
+          }
+        })
       }
     })
   });
